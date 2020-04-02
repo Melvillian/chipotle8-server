@@ -14,6 +14,9 @@ type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Result<Message, warp
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 
+/// the static HTML to serve
+static INDEX_HTML: &str = "/home/melvillian/Desktop/code/chipotle8-server/index.html";
+
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
@@ -35,11 +38,13 @@ async fn main() {
         });
 
     // GET / -> index html
-    let index = warp::path::end().map(|| warp::reply::html(INDEX_HTML));
+    let index = warp::get()
+    .and(warp::path::end())
+    .and(warp::fs::file(INDEX_HTML));
 
     let routes = index.or(chat);
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 3000)).await;
 }
 async fn user_connected(ws: WebSocket, users: Users) {
     // Use a counter to assign a new unique ID for this user.
@@ -117,41 +122,3 @@ async fn user_disconnected(my_id: usize, users: &Users) {
     // Stream closed up, so remove from the user list
     users.lock().await.remove(&my_id);
 }
-
-static INDEX_HTML: &str = r#"
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Warp Chat</title>
-    </head>
-    <body>
-        <h1>warp chat</h1>
-        <div id="chat">
-            <p><em>Connecting...</em></p>
-        </div>
-        <input type="text" id="text" />
-        <button type="button" id="send">Send</button>
-        <script type="text/javascript">
-        var uri = 'ws://' + location.host + '/chat';
-        var ws = new WebSocket(uri);
-        function message(data) {
-            var line = document.createElement('p');
-            line.innerText = data;
-            chat.appendChild(line);
-        }
-        ws.onopen = function() {
-            chat.innerHTML = "<p><em>Connected!</em></p>";
-        }
-        ws.onmessage = function(msg) {
-            message(msg.data);
-        };
-        send.onclick = function() {
-            var msg = text.value;
-            ws.send(msg);
-            text.value = '';
-            message('<You>: ' + msg);
-        };
-        </script>
-    </body>
-</html>
-"#;
