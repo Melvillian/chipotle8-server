@@ -36,8 +36,7 @@ async fn main() {
     //     .and(warp::path!("public" / "app.js"))
     //     .and(warp::path::end())
     //     .and(warp::fs::file("/public/app.js"));
-    let bundle = warp::path("public")
-        .and(warp::fs::dir("public"));
+    let bundle = warp::path("public").and(warp::fs::dir("public"));
 
     // GET /chat -> websocket upgrade
     let chat = warp::path("chat")
