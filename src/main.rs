@@ -15,7 +15,7 @@ type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Result<Message, warp
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// the static HTML to serve
-static INDEX_HTML: &str = "index.html";
+static INDEX_HTML_PATH: &str = "public/index.html";
 
 #[tokio::main]
 async fn main() {
@@ -30,7 +30,7 @@ async fn main() {
     // GET / -> index html
     let index = warp::get()
         .and(warp::path::end())
-        .and(warp::fs::file(INDEX_HTML));
+        .and(warp::fs::file(INDEX_HTML_PATH));
 
     // let bundle = warp::get()
     //     .and(warp::path!("public" / "app.js"))
