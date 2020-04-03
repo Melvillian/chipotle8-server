@@ -1,10 +1,10 @@
 use chipotle8::Interpreter;
+use futures::{FutureExt, StreamExt};
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-use futures::{FutureExt, StreamExt};
 use tokio::sync::{mpsc, Mutex};
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
@@ -15,7 +15,7 @@ type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Result<Message, warp
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// the static HTML to serve
-static INDEX_HTML: &str = "/home/melvillian/Desktop/code/chipotle8-server/index.html";
+static INDEX_HTML: &str = "index.html";
 
 #[tokio::main]
 async fn main() {
@@ -27,6 +27,18 @@ async fn main() {
     // Turn our "state" into a new Filter...
     let users = warp::any().map(move || users.clone());
 
+    // GET / -> index html
+    let index = warp::get()
+        .and(warp::path::end())
+        .and(warp::fs::file(INDEX_HTML));
+
+    // let bundle = warp::get()
+    //     .and(warp::path!("public" / "app.js"))
+    //     .and(warp::path::end())
+    //     .and(warp::fs::file("/public/app.js"));
+    let bundle = warp::path("public")
+        .and(warp::fs::dir("public"));
+
     // GET /chat -> websocket upgrade
     let chat = warp::path("chat")
         // The `ws()` filter will prepare Websocket handshake...
@@ -37,12 +49,7 @@ async fn main() {
             ws.on_upgrade(move |socket| user_connected(socket, users))
         });
 
-    // GET / -> index html
-    let index = warp::get()
-    .and(warp::path::end())
-    .and(warp::fs::file(INDEX_HTML));
-
-    let routes = index.or(chat);
+    let routes = index.or(chat).or(bundle);
 
     warp::serve(routes).run(([127, 0, 0, 1], 3000)).await;
 }
