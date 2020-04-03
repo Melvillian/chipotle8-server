@@ -1,0 +1,17 @@
+{
+  "name": "chipotle8-server",
+  "version": "1.0.0",
+  "description": "A gameserver for the chipotle8 interpreter",
+  "scripts": {
+    "build": "webpack --config ./webpack.config.js"
+  },
+  "author": "Alex Melville",
+  "license": "MIT",
+  "dependencies": {
+    "socket.io-client": "^2.0.2"
+  },
+  "devDependencies": {
+    "webpack": "^2.7.0",
+    "webpack-cli": "^3.3.11"
+  }
+}

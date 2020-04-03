@@ -1,10 +1,10 @@
 use chipotle8::Interpreter;
+use futures::{FutureExt, StreamExt};
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-use futures::{FutureExt, StreamExt};
 use tokio::sync::{mpsc, Mutex};
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
@@ -13,6 +13,9 @@ type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Result<Message, warp
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
+
+/// the static HTML to serve
+static INDEX_HTML_PATH: &str = "public/index.html";
 
 #[tokio::main]
 async fn main() {
@@ -24,6 +27,17 @@ async fn main() {
     // Turn our "state" into a new Filter...
     let users = warp::any().map(move || users.clone());
 
+    // GET / -> index html
+    let index = warp::get()
+        .and(warp::path::end())
+        .and(warp::fs::file(INDEX_HTML_PATH));
+
+    // let bundle = warp::get()
+    //     .and(warp::path!("public" / "app.js"))
+    //     .and(warp::path::end())
+    //     .and(warp::fs::file("/public/app.js"));
+    let bundle = warp::path("public").and(warp::fs::dir("public"));
+
     // GET /chat -> websocket upgrade
     let chat = warp::path("chat")
         // The `ws()` filter will prepare Websocket handshake...
@@ -34,12 +48,9 @@ async fn main() {
             ws.on_upgrade(move |socket| user_connected(socket, users))
         });
 
-    // GET / -> index html
-    let index = warp::path::end().map(|| warp::reply::html(INDEX_HTML));
+    let routes = index.or(chat).or(bundle);
 
-    let routes = index.or(chat);
-
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], 3000)).await;
 }
 async fn user_connected(ws: WebSocket, users: Users) {
     // Use a counter to assign a new unique ID for this user.
@@ -117,41 +128,3 @@ async fn user_disconnected(my_id: usize, users: &Users) {
     // Stream closed up, so remove from the user list
     users.lock().await.remove(&my_id);
 }
-
-static INDEX_HTML: &str = r#"
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Warp Chat</title>
-    </head>
-    <body>
-        <h1>warp chat</h1>
-        <div id="chat">
-            <p><em>Connecting...</em></p>
-        </div>
-        <input type="text" id="text" />
-        <button type="button" id="send">Send</button>
-        <script type="text/javascript">
-        var uri = 'ws://' + location.host + '/chat';
-        var ws = new WebSocket(uri);
-        function message(data) {
-            var line = document.createElement('p');
-            line.innerText = data;
-            chat.appendChild(line);
-        }
-        ws.onopen = function() {
-            chat.innerHTML = "<p><em>Connected!</em></p>";
-        }
-        ws.onmessage = function(msg) {
-            message(msg.data);
-        };
-        send.onclick = function() {
-            var msg = text.value;
-            ws.send(msg);
-            text.value = '';
-            message('<You>: ' + msg);
-        };
-        </script>
-    </body>
-</html>
-"#;
