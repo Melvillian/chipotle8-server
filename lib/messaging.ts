@@ -26,6 +26,9 @@ export interface Message {
   toJSON: () => string;
 }
 
+/**
+ * A Message for the KeyUp and KeyDown MessageTypes
+ */
 export class KeyMessage implements Message {
   keyType: MessageType; // up or down
   key: Key;
@@ -49,6 +52,9 @@ export class KeyMessage implements Message {
   }
 }
 
+/**
+ * A Message for the Disconnect MessageType
+ */
 export class DisconnectMessage implements Message {
   userId: number;
 
@@ -70,6 +76,9 @@ export class DisconnectMessage implements Message {
   }
 }
 
+/**
+ * A Message for the DisplayChange MessageType
+ */
 export class DisplayChangeMessage implements Message {
   changes: DisplayChange[];
 
