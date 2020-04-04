@@ -12,9 +12,6 @@
       "pre-commit": "pretty-quick --staged"
     }
   },
-  "dependencies": {
-    "socket.io-client": "^2.0.2"
-  },
   "devDependencies": {
     "husky": "^4.2.3",
     "prettier": "2.0.2",

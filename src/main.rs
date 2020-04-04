@@ -3,7 +3,7 @@ use futures::{FutureExt, StreamExt};
 use warp::Filter;
 
 /// the static HTML to serve
-static INDEX_HTML_PATH: &str = "public/index.html";
+static INDEX_HTML_PATH: &str = "dist/index.html";
 
 #[tokio::main]
 async fn main() {
@@ -14,11 +14,8 @@ async fn main() {
         .and(warp::path::end())
         .and(warp::fs::file(INDEX_HTML_PATH));
 
-    // let bundle = warp::get()
-    //     .and(warp::path!("public" / "app.js"))
-    //     .and(warp::path::end())
-    //     .and(warp::fs::file("/public/app.js"));
-    let bundle = warp::path("public").and(warp::fs::dir("public"));
+    // expose all of the files in dist/
+    let bundle = warp::path("dist").and(warp::fs::dir("dist"));
 
     // GET /chat -> websocket upgrade
     let chat = warp::path("echo")
