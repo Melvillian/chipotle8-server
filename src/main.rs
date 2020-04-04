@@ -1,6 +1,7 @@
 use chipotle8::Interpreter;
 use futures::{FutureExt, StreamExt};
 use warp::Filter;
+use warp::filters::ws::WebSocket;
 
 /// the static HTML to serve
 static INDEX_HTML_PATH: &str = "dist/index.html";
@@ -23,7 +24,7 @@ async fn main() {
         .and(warp::ws())
         .map(|ws: warp::ws::Ws| {
             // And then our closure will be called when it completes...
-            ws.on_upgrade(|websocket| {
+            ws.on_upgrade(|websocket: WebSocket| {
                 // Just echo all messages back...
                 let (tx, rx) = websocket.split();
 

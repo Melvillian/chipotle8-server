@@ -16,4 +16,6 @@ module.exports = {
     path: require("path").join(__dirname, "./dist"),
     filename: "app.js",
   },
+  mode: "development",
+  devtool: "inline-source-map",
 };
