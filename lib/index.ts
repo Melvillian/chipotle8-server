@@ -4,7 +4,7 @@ console.log("init");
 
 socket.onopen = onConnect;
 
-function onConnect(event) {
+function onConnect(event: Event) {
   console.log("it connected! with event");
   console.log(event);
   socket.send("sending blarf");
