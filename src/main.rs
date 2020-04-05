@@ -115,7 +115,6 @@ async fn user_connected(ws: WebSocket, users: Users) {
 
                     let display_change_message = serde_json::to_string(&DisplayChangeMessage { r#type: "displaychange", changes }).unwrap();
 
-                    println!("sending display change message: {:?}", display_change_message);
                     if let Err(_disconnected) = shared_tx
                         .clone()
                         .lock()
