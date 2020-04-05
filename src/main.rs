@@ -72,7 +72,7 @@ async fn user_connected(ws: WebSocket, users: Users) {
     // Save the sender in our list of connected users.
     let interpreter = Arc::new(Mutex::new(Interpreter::with_game_file("data/PONG").unwrap()));
     let shared_tx = Arc::new(Mutex::new(tx));
-    users.lock().await.insert(my_id, (shared_tx, interpreter.clone()));
+    users.lock().await.insert(my_id, (shared_tx.clone(), interpreter.clone()));
 
     // spawn a separate thread which runs the interpreter indefinitely
     // TODO: break out of the loop and clean things up if all users
@@ -90,9 +90,13 @@ async fn user_connected(ws: WebSocket, users: Users) {
                 if op.is_display_op() {
                     let changes = interpreter.flush_changes();
                     
-                    let shared_tx = shared_tx.clone().lock().await;
                     for change in changes {
-                        shared_tx.send(Ok(Message::text("hello".to_string())));
+                        // TODO implement sending display changes to all users
+                        if let Err(_disconnected) = shared_tx.clone().lock().await.send(Ok(Message::text("hello".to_string()))) {
+                            // The tx is disconnected, our `user_disconnected` code
+                            // should be happening in another task, nothing more to
+                            // do here.
+                        }
                     }
                 }
             }
@@ -109,6 +113,13 @@ async fn user_connected(ws: WebSocket, users: Users) {
                 break;
             }
         };
-        //user_message(my_id, msg, &users).await;
+        
+        user_message(my_id, msg, &users).await;
     }
 }
+
+async fn user_message(my_id: usize, msg: Message, users: &Users) {
+    // TODO: implement key event handling
+}
+
+// TODO: implement game room creation and adding a user to the room
