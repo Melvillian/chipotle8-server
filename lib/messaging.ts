@@ -6,7 +6,7 @@ import { DisplayChange } from "./display_change";
 const messageTypes = ["disconnect", "displaychange", "keydown", "keyup"];
 
 // used so we can calculate its `typeof` and compare it against the type of incoming message data
-const displayChangeExample = [{ x: 0, y: 0, isOn: true }];
+const displayChangeExample = [{ x: 0, y: 0, isAlive: true }];
 
 /**
  * The types of events we'll receive over the websocket from the server
@@ -21,7 +21,7 @@ export enum MessageType {
 /**
  * A message sent or received via WebSockets
  */
-export interface Message {
+interface Message {
   type: () => MessageType;
   toJSON: () => string;
 }
