@@ -17,7 +17,7 @@ static INDEX_HTML_PATH: &str = "dist/index.html";
 ///
 /// - Key is their id
 /// - Value is a sender of `warp::ws::Message`
-type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Result<Message, warp::Error>>>>>;
+type Users = Arc<Mutex<HashMap<usize, (Arc<Mutex<mpsc::UnboundedSender<Result<Message, warp::Error>>>>, Arc<Mutex<Interpreter>>)>>>;
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
@@ -70,22 +70,34 @@ async fn user_connected(ws: WebSocket, users: Users) {
     }));
 
     // Save the sender in our list of connected users.
-    users.lock().await.insert(my_id, tx);
+    let interpreter = Arc::new(Mutex::new(Interpreter::with_game_file("data/PONG").unwrap()));
+    let shared_tx = Arc::new(Mutex::new(tx));
+    users.lock().await.insert(my_id, (shared_tx, interpreter.clone()));
 
-    // get access to the interpreter
-    // interpreter.lock().await.cycle();
-    // std::thread::spawn(move || {
-    //     thread::sleep(std::time::Duration::from_millis(
-    //         chipotle8::TIMER_CYCLE_INTERVAL,
-    //     ));
+    // spawn a separate thread which runs the interpreter indefinitely
+    // TODO: break out of the loop and clean things up if all users
+    // disconnect
+    tokio::spawn(async move {
+        loop {
+            thread::sleep(std::time::Duration::from_millis(
+                chipotle8::TIMER_CYCLE_INTERVAL,
+            ));
 
-    //     // execute the current operation and draw the display if it changed
-    //     if let Some(op) = interpreter.cycle() {
-    //         if op.is_display_op() {
-    //             let changes = interpreter.flush_changes();
-    //         }
-    //     }
-    // });
+            let mut interpreter = interpreter.lock().await;
+    
+            // execute the current operation and draw the display if it changed
+            if let Some(op) = interpreter.cycle() {
+                if op.is_display_op() {
+                    let changes = interpreter.flush_changes();
+                    
+                    let shared_tx = shared_tx.clone().lock().await;
+                    for change in changes {
+                        shared_tx.send(Ok(Message::text("hello".to_string())));
+                    }
+                }
+            }
+        }
+    });
 
     // Every time the user sends a message, broadcast it to
     // all other users...
