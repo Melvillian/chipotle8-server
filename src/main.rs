@@ -1,5 +1,7 @@
-use chipotle8::Interpreter;
+use chipotle8::{DisplayChange, Interpreter};
 use futures::{FutureExt, StreamExt};
+use serde::Serialize;
+use serde_json::Result as JsonResult;
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -103,15 +105,20 @@ async fn user_connected(ws: WebSocket, users: Users) {
             // execute the current operation and draw the display if it changed
             if let Some(op) = interpreter.cycle() {
                 if op.is_display_op() {
-                    let changes = interpreter.flush_changes();
+                    let changes = interpreter
+                        .flush_changes()
+                        .into_iter()
+                        .map(|change| {
+                            serde_json::to_string(&change).unwrap()
+                        });
 
                     for change in changes {
-                        // TODO implement sending display changes to all users
+                        println!("send display change: {:?}", change);
                         if let Err(_disconnected) = shared_tx
                             .clone()
                             .lock()
                             .await
-                            .send(Ok(Message::text("hello".to_string())))
+                            .send(Ok(Message::text(change)))
                         {
                             // The tx is disconnected, our `user_disconnected` code
                             // should be happening in another task, nothing more to

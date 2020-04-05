@@ -146,7 +146,6 @@ version = "0.1.0"
 dependencies = [
  "rand 0.7.3",
  "serde",
- "serde_json",
  "slog",
  "sloggers",
 ]
@@ -158,6 +157,8 @@ dependencies = [
  "chipotle8",
  "futures",
  "pretty_env_logger",
+ "serde",
+ "serde_json",
  "tokio",
  "warp",
 ]
