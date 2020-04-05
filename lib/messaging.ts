@@ -6,7 +6,7 @@ import { DisplayChange } from "./display_change";
 const messageTypes = ["disconnect", "displaychange", "keydown", "keyup"];
 
 // used so we can calculate its `typeof` and compare it against the type of incoming message data
-const displayChangeExample = [[0, 0, true]];
+const displayChangeExample = [{ x: 0, y: 0, isOn: true }];
 
 /**
  * The types of events we'll receive over the websocket from the server
