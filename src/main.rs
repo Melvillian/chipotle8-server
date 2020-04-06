@@ -1,5 +1,7 @@
-use chipotle8::Interpreter;
+use chipotle8::{DisplayChange, Interpreter};
 use futures::{FutureExt, StreamExt};
+use serde::Serialize;
+use serde_json::Result as JsonResult;
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -28,6 +30,12 @@ type Users = Arc<
         >,
     >,
 >;
+
+#[derive(Debug, Serialize)]
+struct DisplayChangeMessage {
+    changes: Vec<DisplayChange>,
+    r#type: &'static str,
+}
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
@@ -105,18 +113,17 @@ async fn user_connected(ws: WebSocket, users: Users) {
                 if op.is_display_op() {
                     let changes = interpreter.flush_changes();
 
-                    for change in changes {
-                        // TODO implement sending display changes to all users
-                        if let Err(_disconnected) = shared_tx
-                            .clone()
-                            .lock()
-                            .await
-                            .send(Ok(Message::text("hello".to_string())))
-                        {
-                            // The tx is disconnected, our `user_disconnected` code
-                            // should be happening in another task, nothing more to
-                            // do here.
-                        }
+                    let display_change_message = serde_json::to_string(&DisplayChangeMessage { r#type: "displaychange", changes }).unwrap();
+
+                    if let Err(_disconnected) = shared_tx
+                        .clone()
+                        .lock()
+                        .await
+                        .send(Ok(Message::text(display_change_message)))
+                    {
+                        // The tx is disconnected, our `user_disconnected` code
+                        // should be happening in another task, nothing more to
+                        // do here.
                     }
                 }
             }

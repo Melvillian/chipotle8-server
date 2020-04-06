@@ -16,7 +16,7 @@ const height = 32;
 // initialize display and fill with empty pixels
 const display = new Array(width * height);
 for (let i = 0; i < width * height; i++) {
-  display.push(DEAD_COLOR);
+  display.push(0);
 }
 
 // Give the canvas room for all of our cells and a 1px border
@@ -55,8 +55,8 @@ const drawGrid = () => {
   ctx.stroke();
 };
 
-const getIndex = (row: number, column: number) => {
-  return row * width + column;
+const getIndex = (x: number, y: number) => {
+  return y * width + x;
 };
 
 const drawCells = () => {
@@ -64,9 +64,9 @@ const drawCells = () => {
 
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
-      const idx = getIndex(row, col);
+      const idx = getIndex(col, row);
 
-      ctx.fillStyle = display[idx];
+      ctx.fillStyle = display[idx] === 1 ? ALIVE_COLOR : DEAD_COLOR;
 
       ctx.fillRect(
         col * (CELL_SIZE + 1) + 1,
@@ -105,7 +105,7 @@ function onMessage(event: MessageEvent) {
     for (let change of changes) {
       const { x, y, isAlive } = change;
       const idx = getIndex(x, y);
-      display[idx] = isAlive ? ALIVE_COLOR : DEAD_COLOR;
+      display[idx] ^= isAlive ? 1 : 0;
     }
   }
 }
