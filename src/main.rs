@@ -13,7 +13,7 @@ use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
 /// the static HTML to serve
-static INDEX_HTML_PATH: &str = "dist/index.html";
+static INDEX_HTML_PATH: &str = "index.html";
 
 /// Our state of currently connected users.
 ///
