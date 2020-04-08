@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
     "noImplicitAny": true,
     "removeComments": true,
-    "module": "es6",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "target": "es5",
-    "jsx": "react",
-    "allowJs": true,
+    "strict": true,
     "sourceMap": true
   },
+
+  "include": ["lib/**/*"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }
