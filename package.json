@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A gameserver for the chipotle8 interpreter",
   "scripts": {
-    "build": "webpack --config ./webpack.config.js"
+    "build": "webpack"
   },
   "author": "Alex Melville",
   "license": "MIT",
@@ -19,6 +19,7 @@
     "ts-loader": "^6.2.2",
     "typescript": "^3.8.3",
     "webpack": "^4.42.1",
-    "webpack-cli": "^3.3.11"
+    "webpack-cli": "^3.3.11",
+    "worker-loader": "^1.1.0"
   }
 }

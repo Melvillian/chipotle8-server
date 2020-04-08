@@ -4,7 +4,9 @@ import {
   DisconnectMessage,
   DisplayChangeMessage,
 } from "./messaging";
-import { DisplayChange } from "./display_change";
+import MyWorker = require("worker-loader?name=[name].js!./worker");
+
+let worker = new MyWorker();
 
 const CELL_SIZE = 10; // px
 const GRID_COLOR = "#CCCCCC";
@@ -37,22 +39,26 @@ const renderLoop = () => {
 };
 
 const drawGrid = () => {
-  ctx.beginPath();
-  ctx.strokeStyle = GRID_COLOR;
+  if (ctx !== null) {
+    ctx.beginPath();
+    ctx.strokeStyle = GRID_COLOR;
 
-  // Vertical lines.
-  for (let i = 0; i <= width; i++) {
-    ctx.moveTo(i * (CELL_SIZE + 1) + 1, 0);
-    ctx.lineTo(i * (CELL_SIZE + 1) + 1, (CELL_SIZE + 1) * height + 1);
+    // Vertical lines.
+    for (let i = 0; i <= width; i++) {
+      ctx.moveTo(i * (CELL_SIZE + 1) + 1, 0);
+      ctx.lineTo(i * (CELL_SIZE + 1) + 1, (CELL_SIZE + 1) * height + 1);
+    }
+
+    // Horizontal lines.
+    for (let j = 0; j <= height; j++) {
+      ctx.moveTo(0, j * (CELL_SIZE + 1) + 1);
+      ctx.lineTo((CELL_SIZE + 1) * width + 1, j * (CELL_SIZE + 1) + 1);
+    }
+
+    ctx.stroke();
+  } else {
+    console.error("failed to load 2d canvas context!");
   }
-
-  // Horizontal lines.
-  for (let j = 0; j <= height; j++) {
-    ctx.moveTo(0, j * (CELL_SIZE + 1) + 1);
-    ctx.lineTo((CELL_SIZE + 1) * width + 1, j * (CELL_SIZE + 1) + 1);
-  }
-
-  ctx.stroke();
 };
 
 const getIndex = (x: number, y: number) => {
@@ -60,24 +66,28 @@ const getIndex = (x: number, y: number) => {
 };
 
 const drawCells = () => {
-  ctx.beginPath();
+  if (ctx !== null) {
+    ctx.beginPath();
 
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      const idx = getIndex(col, row);
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        const idx = getIndex(col, row);
 
-      ctx.fillStyle = display[idx] === 1 ? ALIVE_COLOR : DEAD_COLOR;
+        ctx.fillStyle = display[idx] === 1 ? ALIVE_COLOR : DEAD_COLOR;
 
-      ctx.fillRect(
-        col * (CELL_SIZE + 1) + 1,
-        row * (CELL_SIZE + 1) + 1,
-        CELL_SIZE,
-        CELL_SIZE
-      );
+        ctx.fillRect(
+          col * (CELL_SIZE + 1) + 1,
+          row * (CELL_SIZE + 1) + 1,
+          CELL_SIZE,
+          CELL_SIZE
+        );
+      }
     }
-  }
 
-  ctx.stroke();
+    ctx.stroke();
+  } else {
+    console.error("failed to load 2d canvas context!");
+  }
 };
 
 const socket = new WebSocket("ws://localhost:3000/echo");

@@ -14,6 +14,8 @@ use warp::Filter;
 
 /// the static HTML to serve
 static INDEX_HTML_PATH: &str = "index.html";
+static WORKER_JS_PATH: &str = "dist/worker.js";
+
 
 /// Our state of currently connected users.
 ///
@@ -55,6 +57,11 @@ async fn main() {
     // expose all of the files in dist/
     let bundle = warp::path("dist").and(warp::fs::dir("dist"));
 
+    // expose the worker code path
+    let worker = warp::path("worker.js")
+        .and(warp::path::end())
+        .and(warp::fs::file(WORKER_JS_PATH));
+
     // GET /chat -> websocket upgrade
     let chat = warp::path("echo")
         // The `ws()` filter will prepare the Websocket handshake.
@@ -65,7 +72,7 @@ async fn main() {
             ws.on_upgrade(move |socket| user_connected(socket, users))
         });
 
-    let routes = index.or(chat).or(bundle);
+    let routes = index.or(worker).or(chat).or(bundle);
 
     warp::serve(routes).run(([127, 0, 0, 1], 3000)).await;
 }
