@@ -26,16 +26,10 @@ function onMessage(event: MessageEvent) {
     console.log("received disconnect");
     const msg = parsed as DisconnectMessage;
   } else if (parsed.type() === MessageType.DisplayChange) {
-    console.log("received displaychange");
     const msg = parsed as DisplayChangeMessage;
 
-    const changes = msg.changes;
-
-    ctx.postMessage(changes);
-    // for (let change of changes) {
-    //   const { x, y, isAlive } = change;
-    //   const idx = getIndex(x, y);
-    //   display[idx] ^= isAlive ? 1 : 0;
-    // }
+    for (let change of msg.changes) {
+      ctx.postMessage(change);
+    }
   }
 }

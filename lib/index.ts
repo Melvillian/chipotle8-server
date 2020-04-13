@@ -2,11 +2,10 @@ import MyWorker = require("worker-loader?name=[name].js!./worker");
 
 let worker = new MyWorker();
 worker.onmessage = (evt: MessageEvent) => {
-  const changes = evt.data;
-  for (let change of changes) {
-    const idx = getIndex(change.x, change.y);
-    display[idx] ^= change.isAlive ? 1 : 0;
-  }
+  const change = evt.data;
+
+  const idx = getIndex(change.x, change.y);
+  display[idx] ^= change.isAlive ? 1 : 0;
 };
 
 const CELL_SIZE = 10; // px
