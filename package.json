@@ -1,7 +1,7 @@
 {
   "name": "chipotle8-server",
   "version": "1.0.0",
-  "description": "A gameserver for the chipotle8 interpreter",
+  "description": "A gameserver for the chipotle8 emulator",
   "scripts": {
     "build": "webpack"
   },

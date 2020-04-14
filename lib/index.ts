@@ -1,9 +1,9 @@
 import MyWorker = require("worker-loader?name=[name].js!./worker");
 
-const CELL_SIZE = 10; // px
-const GRID_COLOR = "#000000"; // #CCCCCC
-const DEAD_COLOR = "#000000";
-const ALIVE_COLOR = "#FFFFFF";
+// const CELL_SIZE = 10; // px
+// const GRID_COLOR = "#000000"; // #CCCCCC
+// const DEAD_COLOR = "#000000";
+// const ALIVE_COLOR = "#FFFFFF";
 
 // const renderLoop = () => {
 //   drawGame();
@@ -67,62 +67,103 @@ const ALIVE_COLOR = "#FFFFFF";
 
 //requestAnimationFrame(renderLoop);
 
+// a canvas RGBA value requires 4 bytes
+const NUM_BYTES_IN_RGBA_VAL = 4;
+
+const getIndex = (x: number, y: number, width: number) => {
+  return (y * width + x) * NUM_BYTES_IN_RGBA_VAL;
+};
+
+let worker = new MyWorker();
+
+// a Canvas ImageData object is a widthxheightx4 array where each pixel is represented by an RGBA value
+// of 4 numbers.
+const writeRGBValue = (
+  imageData: ImageData,
+  x: number,
+  y: number,
+  width: number,
+  isWhite: boolean
+) => {
+  // Get the pixel index
+  const pixelIndex = getIndex(x, y, width);
+
+  // Set the pixel data
+  const pixelValue = isWhite ? 255 : 0;
+
+  imageData.data[pixelIndex] = pixelValue;
+  imageData.data[pixelIndex + 1] = pixelValue;
+  imageData.data[pixelIndex + 2] = pixelValue;
+  imageData.data[pixelIndex + 3] = 255; // alpha value is always maxed out, because 0 is fully transparant
+};
+
+// Update an imageData's pixel color value with the change coming in from the game server
+const updateImageData = (
+  imageData: ImageData,
+  change: any,
+  width: number,
+  DISPLAY_RATIO: number
+) => {};
+
 window.onload = function () {
-  let worker = new MyWorker();
-  worker.onmessage = (evt: MessageEvent) => {
-    const change = evt.data;
-
-    const idx = getIndex(change.x, change.y);
-
-    //display[idx] ^= change.isAlive ? 1 : 0;
-  };
-
-  const getIndex = (x: number, y: number) => {
-    return y * width + x;
-  };
-
   // Get the canvas and context
   const canvas: HTMLCanvasElement = document.getElementById(
     "game-of-life-canvas"
   ) as HTMLCanvasElement;
-  var context = canvas.getContext("2d");
+  const context = canvas.getContext("2d");
 
-  // Define the image dimensions
-  const width = canvas.width;
-  const height = canvas.height;
+  const CHIP_8_WIDTH = 64;
+  const CHIP_8_HEIGHT = 32;
 
-  console.log("height: " + height + " width: " + width);
+  // Define the image dimensions as the closest multiple of the
+  // base CHIP-8 display width and height
+  const width_multiplier = Math.ceil(canvas.width / CHIP_8_WIDTH);
+  const height_multiplier = Math.ceil(canvas.height / CHIP_8_HEIGHT);
+  const width = CHIP_8_WIDTH * width_multiplier;
+  const height = CHIP_8_HEIGHT * height_multiplier;
 
   // Create an ImageData object
-  var imagedata = context?.createImageData(width, height);
+  let imageData = context?.createImageData(width, height);
 
-  // Create the image
+  // setup the worker
+  worker.onmessage = (evt: MessageEvent) => {
+    const change = evt.data;
+
+    updateImageData(imageData!, change, width, DISPLAY_RATIO);
+
+    //display[idx] ^= change.isAlive ? 1 : 0;
+  };
+
+  // the CHIP-8 display is a fixed width and height, but the canvas
+  // width and height can change. DISPLAY_RATIO is a multiplier
+  // representing how many canvas pixels represent a single CHIP-8
+  // pixel
+  const DISPLAY_RATIO = Math.floor(width / CHIP_8_WIDTH);
+
+  console.log("height: " + height + " width: " + width);
+  console.log(
+    "canvas height: " + canvas.height + " canvas width: " + canvas.width
+  );
+  console.log("ratio: " + DISPLAY_RATIO);
+
+  // Create the initial black pixel map
   function initializeImage() {
     // Loop over all of the pixels
-    for (var x = 0; x < width; x++) {
-      for (var y = 0; y < height; y++) {
-        // Get the pixel index
-        var pixelindex = (y * width + x) * 4;
-
-        // Set the pixel data
-        imagedata!.data[pixelindex] = Math.random() * 255; // Red
-        imagedata!.data[pixelindex + 1] = Math.random() * 255; // Green
-        imagedata!.data[pixelindex + 2] = Math.random() * 255; // Blue
-        imagedata!.data[pixelindex + 3] = 255; // Alpha
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        writeRGBValue(imageData!, x, y, width, false);
       }
     }
   }
+  initializeImage();
 
   // Main loop
   function main(tframe: number) {
     // Request animation frames
     window.requestAnimationFrame(main);
 
-    // Create the image
-    initializeImage();
-
     // Draw the image data to the canvas
-    context?.putImageData(imagedata!, 0, 0);
+    context?.putImageData(imageData!, 0, 0);
   }
 
   // Call the main loop
