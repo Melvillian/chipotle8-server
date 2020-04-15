@@ -70,6 +70,8 @@ import MyWorker = require("worker-loader?name=[name].js!./worker");
 // a canvas RGBA value requires 4 bytes
 const NUM_BYTES_IN_RGBA_VAL = 4;
 
+type CanvasChange = { x: number; y: number };
+
 const getIndex = (x: number, y: number, width: number) => {
   return (y * width + x) * NUM_BYTES_IN_RGBA_VAL;
 };
@@ -91,10 +93,30 @@ const writeRGBValue = (
   // Set the pixel data
   const pixelValue = isWhite ? 255 : 0;
 
-  imageData.data[pixelIndex] = pixelValue;
-  imageData.data[pixelIndex + 1] = pixelValue;
-  imageData.data[pixelIndex + 2] = pixelValue;
+  imageData.data[pixelIndex + 0] ^= pixelValue;
+  imageData.data[pixelIndex + 1] ^= pixelValue;
+  imageData.data[pixelIndex + 2] ^= pixelValue;
   imageData.data[pixelIndex + 3] = 255; // alpha value is always maxed out, because 0 is fully transparant
+};
+
+// given a pixel change from the emulator, return the corresponding
+const getCanvasChangesFromChange = (
+  chip_x: number,
+  chip_y: number,
+  width: number,
+  widthMultiplier: number,
+  heightMultiplier: number
+): CanvasChange[] => {
+  const canvasChanges: CanvasChange[] = [];
+  for (let w = 0; w < widthMultiplier; w++) {
+    for (let h = 0; h < heightMultiplier; h++) {
+      const x = w;
+      const y = h * width;
+      canvasChanges.push({ x, y });
+    }
+  }
+
+  return canvasChanges;
 };
 
 // Update an imageData's pixel color value with the change coming in from the game server
@@ -102,8 +124,22 @@ const updateImageData = (
   imageData: ImageData,
   change: any,
   width: number,
-  DISPLAY_RATIO: number
-) => {};
+  widthMultiplier: number,
+  heightMultiplier: number
+) => {
+  const { x: chip_x, y: chip_y, isAlive } = change;
+
+  for (let canvasChange of getCanvasChangesFromChange(
+    chip_x,
+    chip_y,
+    width,
+    widthMultiplier,
+    heightMultiplier
+  )) {
+    const { x, y } = canvasChange;
+    writeRGBValue(imageData, x, y, width, isAlive);
+  }
+};
 
 window.onload = function () {
   // Get the canvas and context
@@ -117,34 +153,41 @@ window.onload = function () {
 
   // Define the image dimensions as the closest multiple of the
   // base CHIP-8 display width and height
-  const width_multiplier = Math.ceil(canvas.width / CHIP_8_WIDTH);
-  const height_multiplier = Math.ceil(canvas.height / CHIP_8_HEIGHT);
-  const width = CHIP_8_WIDTH * width_multiplier;
-  const height = CHIP_8_HEIGHT * height_multiplier;
+  const widthMultiplier = Math.floor(canvas.width / CHIP_8_WIDTH);
+  const heightMultiplier = Math.floor(canvas.height / CHIP_8_HEIGHT);
+  const width = CHIP_8_WIDTH * widthMultiplier;
+  const height = CHIP_8_HEIGHT * heightMultiplier;
 
   // Create an ImageData object
   let imageData = context?.createImageData(width, height);
-
-  // setup the worker
-  worker.onmessage = (evt: MessageEvent) => {
-    const change = evt.data;
-
-    updateImageData(imageData!, change, width, DISPLAY_RATIO);
-
-    //display[idx] ^= change.isAlive ? 1 : 0;
-  };
 
   // the CHIP-8 display is a fixed width and height, but the canvas
   // width and height can change. DISPLAY_RATIO is a multiplier
   // representing how many canvas pixels represent a single CHIP-8
   // pixel
-  const DISPLAY_RATIO = Math.floor(width / CHIP_8_WIDTH);
 
   console.log("height: " + height + " width: " + width);
   console.log(
     "canvas height: " + canvas.height + " canvas width: " + canvas.width
   );
-  console.log("ratio: " + DISPLAY_RATIO);
+  console.log("heightMultiplier: " + heightMultiplier);
+  console.log("widthMultiplier: " + widthMultiplier);
+
+  // setup the worker
+  worker.onmessage = (evt: MessageEvent) => {
+    const change = evt.data;
+
+    console.log(`updating with change ${JSON.stringify(change)}`);
+    updateImageData(
+      imageData!,
+      change,
+      width,
+      widthMultiplier,
+      heightMultiplier
+    );
+
+    //display[idx] ^= change.isAlive ? 1 : 0;
+  };
 
   // Create the initial black pixel map
   function initializeImage() {
