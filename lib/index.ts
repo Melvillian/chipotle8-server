@@ -173,11 +173,20 @@ window.onload = function () {
   console.log("heightMultiplier: " + heightMultiplier);
   console.log("widthMultiplier: " + widthMultiplier);
 
+  let shouldPrint = true;
   // setup the worker
   worker.onmessage = (evt: MessageEvent) => {
     const change = evt.data;
 
-    console.log(`updating with change ${JSON.stringify(change)}`);
+    let before = new Uint8ClampedArray(0);
+    if (shouldPrint) {
+      console.log(`updating with change ${JSON.stringify(change)}`);
+
+      before = imageData!.data.slice();
+      console.log("before");
+      console.log(this.JSON.stringify(imageData!.data));
+    }
+
     updateImageData(
       imageData!,
       change,
@@ -185,6 +194,21 @@ window.onload = function () {
       widthMultiplier,
       heightMultiplier
     );
+
+    if (shouldPrint) {
+      shouldPrint = false;
+      console.log("after");
+      console.log(this.JSON.stringify(imageData!.data));
+      for (let i = 0; i < imageData!.data.length; i++) {
+        if (imageData!.data[i] !== before[i]) {
+          console.log(
+            `discrepancy. i: ${i}, before: ${before[i]}, after: ${
+              imageData!.data[i]
+            }`
+          );
+        }
+      }
+    }
 
     //display[idx] ^= change.isAlive ? 1 : 0;
   };
