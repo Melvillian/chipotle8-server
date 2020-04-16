@@ -41,13 +41,6 @@ window.onload = function () {
   worker.onmessage = (evt: MessageEvent) => {
     const change = evt.data;
 
-    let before = new Uint8ClampedArray(0);
-    if (shouldPrint) {
-      console.log(`updating with change ${JSON.stringify(change)}`);
-
-      before = imageData.data.slice();
-    }
-
     updateCanvasImageData(
       imageData,
       change,
@@ -56,16 +49,8 @@ window.onload = function () {
       heightMultiplier
     );
 
-    if (shouldPrint) {
-      //shouldPrint = false;
-      const imageChanges = [];
-      for (let i = 0; i < imageData.data.length; i++) {
-        if (imageData.data[i] !== before[i]) {
-          imageChanges.push({ i, before: before[i], after: imageData.data[i] });
-        }
-      }
-      console.log(`discrepancy: ${JSON.stringify(imageChanges)}`);
-    }
+    // Draw the image data to the canvas
+    context?.putImageData(imageData, 0, 0);
   };
 
   // setup our black pixel canvas
@@ -75,9 +60,6 @@ window.onload = function () {
   function main(tframe: number) {
     // Request animation frames
     window.requestAnimationFrame(main);
-
-    // Draw the image data to the canvas
-    context?.putImageData(imageData, 0, 0);
   }
 
   // Call the main loop

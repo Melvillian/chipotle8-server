@@ -57,10 +57,10 @@ const getCanvasChangesFromChange = (
 
   const startingX = chipX * widthMultiplier;
   const startingY = chipY * heightMultiplier;
-  for (let w = 0; w < widthMultiplier; w++) {
-    for (let h = 0; h < heightMultiplier; h++) {
+  for (let h = 0; h < heightMultiplier; h++) {
+    const y = startingY + h;
+    for (let w = 0; w < widthMultiplier; w++) {
       const x = startingX + w;
-      const y = startingY + h;
       canvasChanges.push({ x, y });
     }
   }
