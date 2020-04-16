@@ -1,82 +1,13 @@
 import MyWorker = require("worker-loader?name=[name].js!./worker");
 
-// const CELL_SIZE = 10; // px
-// const GRID_COLOR = "#000000"; // #CCCCCC
-// const DEAD_COLOR = "#000000";
-// const ALIVE_COLOR = "#FFFFFF";
-
-// const renderLoop = () => {
-//   drawGame();
-//   //drawGrid();
-//   //drawCells();
-
-//   requestAnimationFrame(renderLoop);
-// };
-
-// const drawGame = () => {
-//   ctx?.putImageData(imageData, 0, 0);
-// }
-
-// const drawGrid = () => {
-//   if (ctx !== null) {
-//     ctx.beginPath();
-//     ctx.strokeStyle = GRID_COLOR;
-
-//     // Vertical lines.
-//     for (let i = 0; i <= width; i++) {
-//       ctx.moveTo(i * (CELL_SIZE + 1) + 1, 0);
-//       ctx.lineTo(i * (CELL_SIZE + 1) + 1, (CELL_SIZE + 1) * height + 1);
-//     }
-
-//     // Horizontal lines.
-//     for (let j = 0; j <= height; j++) {
-//       ctx.moveTo(0, j * (CELL_SIZE + 1) + 1);
-//       ctx.lineTo((CELL_SIZE + 1) * width + 1, j * (CELL_SIZE + 1) + 1);
-//     }
-
-//     ctx.stroke();
-//   } else {
-//     console.error("failed to load 2d canvas context!");
-//   }
-// };
-
-// const drawCells = () => {
-//   if (ctx !== null) {
-//     ctx.beginPath();
-
-//     for (let row = 0; row < height; row++) {
-//       for (let col = 0; col < width; col++) {
-//         const idx = getIndex(col, row);
-
-//         ctx.fillStyle = display[idx] === 1 ? ALIVE_COLOR : DEAD_COLOR;
-
-//         ctx.fillRect(
-//           col * (CELL_SIZE + 1) + 1,
-//           row * (CELL_SIZE + 1) + 1,
-//           CELL_SIZE,
-//           CELL_SIZE
-//         );
-//       }
-//     }
-
-//     ctx.stroke();
-//   } else {
-//     console.error("failed to load 2d canvas context!");
-//   }
-// };
-
-//requestAnimationFrame(renderLoop);
-
 // a canvas RGBA value requires 4 bytes
-const NUM_BYTES_IN_RGBA_VAL = 4;
+const NUM_BYTES_IN_RGBA = 4;
 
 type CanvasChange = { x: number; y: number };
 
 const getIndex = (x: number, y: number, width: number) => {
-  return (y * width + x) * NUM_BYTES_IN_RGBA_VAL;
+  return (y * width + x) * NUM_BYTES_IN_RGBA;
 };
-
-let worker = new MyWorker();
 
 // a Canvas ImageData object is a widthxheightx4 array where each pixel is represented by an RGBA value
 // of 4 numbers.
@@ -101,25 +32,33 @@ const writeRGBValue = (
 
 // given a pixel change from the emulator, return the corresponding
 const getCanvasChangesFromChange = (
-  chip_x: number,
-  chip_y: number,
+  chipX: number,
+  chipY: number,
   width: number,
   widthMultiplier: number,
   heightMultiplier: number
 ): CanvasChange[] => {
   const canvasChanges: CanvasChange[] = [];
+
+  const startingX = chipX * widthMultiplier;
+  const startingY = chipY * heightMultiplier * width;
+  console.log(`chipX: ${chipX}, chipY: ${chipY}`);
   for (let w = 0; w < widthMultiplier; w++) {
     for (let h = 0; h < heightMultiplier; h++) {
-      const x = w;
-      const y = h * width;
+      const x = startingX + w;
+      const y = startingY + h * width;
       canvasChanges.push({ x, y });
     }
   }
 
+  console.log(`canvasChanges: ${JSON.stringify(canvasChanges)}`);
   return canvasChanges;
 };
 
-// Update an imageData's pixel color value with the change coming in from the game server
+// Update a display pixel with the change coming in from the game server. This will
+// change multiple pixels on the canvas because a single pixel on the emulator
+// display is represented by multiple pixels on the canvas, the exact number
+// of which is determined by widthMultiplier and heightMultiplier
 const updateImageData = (
   imageData: ImageData,
   change: any,
@@ -127,11 +66,11 @@ const updateImageData = (
   widthMultiplier: number,
   heightMultiplier: number
 ) => {
-  const { x: chip_x, y: chip_y, isAlive } = change;
+  const { x: chipX, y: chipY, isAlive } = change;
 
   for (let canvasChange of getCanvasChangesFromChange(
-    chip_x,
-    chip_y,
+    chipX,
+    chipY,
     width,
     widthMultiplier,
     heightMultiplier
@@ -140,6 +79,8 @@ const updateImageData = (
     writeRGBValue(imageData, x, y, width, isAlive);
   }
 };
+
+let worker = new MyWorker();
 
 window.onload = function () {
   // Get the canvas and context
@@ -183,8 +124,6 @@ window.onload = function () {
       console.log(`updating with change ${JSON.stringify(change)}`);
 
       before = imageData!.data.slice();
-      console.log("before");
-      console.log(this.JSON.stringify(imageData!.data));
     }
 
     updateImageData(
@@ -197,8 +136,6 @@ window.onload = function () {
 
     if (shouldPrint) {
       shouldPrint = false;
-      console.log("after");
-      console.log(this.JSON.stringify(imageData!.data));
       for (let i = 0; i < imageData!.data.length; i++) {
         if (imageData!.data[i] !== before[i]) {
           console.log(
@@ -209,8 +146,6 @@ window.onload = function () {
         }
       }
     }
-
-    //display[idx] ^= change.isAlive ? 1 : 0;
   };
 
   // Create the initial black pixel map

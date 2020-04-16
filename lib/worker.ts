@@ -5,8 +5,6 @@ import {
   DisplayChangeMessage,
 } from "./messaging";
 
-const ctx: Worker = self as any;
-
 console.log("starting worker");
 
 const DOMAIN = "localhost:3000/";
@@ -18,6 +16,8 @@ socket.onmessage = onMessage;
 function onConnect(event: Event) {
   console.log(`connected to websocket server at ${DOMAIN}`);
 }
+
+const ctx: Worker = self as any;
 
 function onMessage(event: MessageEvent) {
   const parsed = parseServerMsg(event.data);
