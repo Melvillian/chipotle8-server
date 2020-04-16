@@ -57,14 +57,14 @@ window.onload = function () {
     );
 
     if (shouldPrint) {
-      shouldPrint = false;
+      //shouldPrint = false;
+      const imageChanges = [];
       for (let i = 0; i < imageData.data.length; i++) {
         if (imageData.data[i] !== before[i]) {
-          console.log(
-            `discrepancy. i: ${i}, before: ${before[i]}, after: ${imageData.data[i]}`
-          );
+          imageChanges.push({ i, before: before[i], after: imageData.data[i] });
         }
       }
+      console.log(`discrepancy: ${JSON.stringify(imageChanges)}`);
     }
   };
 

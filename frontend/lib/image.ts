@@ -56,17 +56,15 @@ const getCanvasChangesFromChange = (
   const canvasChanges: CanvasChange[] = [];
 
   const startingX = chipX * widthMultiplier;
-  const startingY = chipY * heightMultiplier * width;
-  console.log(`chipX: ${chipX}, chipY: ${chipY}`);
+  const startingY = chipY * heightMultiplier;
   for (let w = 0; w < widthMultiplier; w++) {
     for (let h = 0; h < heightMultiplier; h++) {
       const x = startingX + w;
-      const y = startingY + h * width;
+      const y = startingY + h;
       canvasChanges.push({ x, y });
     }
   }
 
-  console.log(`canvasChanges: ${JSON.stringify(canvasChanges)}`);
   return canvasChanges;
 };
 
