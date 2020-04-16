@@ -1,8 +1,10 @@
-let webpack = require("webpack");
+const webpack = require("webpack");
+const path = require("path");
 
 module.exports = {
-  entry: "./lib/index.ts",
+  entry: "./frontend/lib/index.ts",
   output: {
+    path: path.resolve(__dirname, "frontend/dist"),
     filename: "app.js",
   },
   module: {

@@ -13,7 +13,7 @@ use warp::Filter;
 
 /// the static HTML to serve
 static INDEX_HTML_PATH: &str = "index.html";
-static WORKER_JS_PATH: &str = "dist/worker.js";
+static WORKER_JS_PATH: &str = "frontend/dist/worker.js";
 
 /// Our state of currently connected users.
 ///
@@ -50,8 +50,10 @@ async fn main() {
     let index = warp::get()
         .and(warp::path::end())
         .and(warp::fs::file(INDEX_HTML_PATH));
-    // expose all of the files in dist/
-    let bundle = warp::path("dist").and(warp::fs::dir("dist"));
+    // expose all of the files in frontend/dist/
+    let bundle = warp::path("frontend")
+        .and(warp::path("dist"))
+        .and(warp::fs::dir("frontend/dist"));
 
     // expose the worker code path
     let worker = warp::path("worker.js")
