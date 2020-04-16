@@ -1,5 +1,5 @@
 import MyWorker = require("worker-loader?name=[name].js!./worker");
-import { updateImageData, initializeImage } from "./image";
+import { updateCanvasImageData, initializeImage } from "./image";
 
 let worker = new MyWorker();
 
@@ -36,7 +36,8 @@ window.onload = function () {
   console.log("widthMultiplier: " + widthMultiplier);
 
   let shouldPrint = true;
-  // setup the worker
+  // the worker reads in pixel changes from the game server and sends those
+  // changes here, where they're used to update the canvas pixels
   worker.onmessage = (evt: MessageEvent) => {
     const change = evt.data;
 
@@ -47,7 +48,7 @@ window.onload = function () {
       before = imageData.data.slice();
     }
 
-    updateImageData(
+    updateCanvasImageData(
       imageData,
       change,
       width,
