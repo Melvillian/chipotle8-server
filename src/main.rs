@@ -56,7 +56,7 @@ async fn main() {
     // expose all of the files in dist/
     let bundle = warp::path("frontend")
         .and(warp::path("dist"))
-        .and(warp::fs::dir("dist"));
+        .and(warp::fs::dir("frontend/dist"));
 
     // expose the worker code path
     let worker = warp::path("worker.js")
@@ -96,7 +96,7 @@ async fn user_connected(ws: WebSocket, users: Users) {
     }));
 
     // Save the sender in our list of connected users.
-    let emulator = Arc::new(Mutex::new(Emulator::with_game_file("data/PONG").unwrap()));
+    let emulator = Arc::new(Mutex::new(Emulator::with_game_file("games/PONG").unwrap()));
     let shared_tx = Arc::new(Mutex::new(tx));
     users
         .lock()
