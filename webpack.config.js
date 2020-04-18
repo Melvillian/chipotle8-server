@@ -3,6 +3,7 @@ let path = require("path");
 module.exports = {
   entry: "./frontend/lib/index.ts",
   output: {
+    path: path.resolve(__dirname, "frontend/dist"),
     filename: "app.js",
   },
   module: {
