@@ -1,7 +1,7 @@
 let webpack = require("webpack");
-
+let path = require("path");
 module.exports = {
-  entry: "./lib/index.ts",
+  entry: "./frontend/lib/index.ts",
   output: {
     filename: "app.js",
   },
