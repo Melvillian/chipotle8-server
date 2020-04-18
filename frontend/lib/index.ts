@@ -9,17 +9,12 @@ import MyWorker = require("worker-loader?name=[name].js!./worker");
 let worker = new MyWorker();
 
 const CELL_SIZE = 10; // px
-const GRID_COLOR = "#CCCCCC";
-const DEAD_COLOR = "#000000";
 const ALIVE_COLOR = "#FFFFFF";
 const width = 64;
 const height = 32;
 
-// initialize display and fill with empty pixels
-const display = new Array(width * height);
-for (let i = 0; i < width * height; i++) {
-  display.push(0);
-}
+// initialize a collection to store our alive pixels which we will draw
+const alivePixels: { [key: string]: number } = {};
 
 // Give the canvas room for all of our cells and a 1px border
 // around each of them.
@@ -30,6 +25,9 @@ canvas.height = (CELL_SIZE + 1) * height + 1;
 canvas.width = (CELL_SIZE + 1) * width + 1;
 
 const ctx = canvas.getContext("2d");
+if (ctx !== null) {
+  ctx.fillStyle = ALIVE_COLOR;
+}
 
 const renderLoop = () => {
   drawCells();
@@ -45,19 +43,17 @@ const drawCells = () => {
   if (ctx !== null) {
     ctx.beginPath();
 
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        const idx = getIndex(col, row);
+    for (let key of Object.keys(alivePixels)) {
+      const coords = key.split(",");
+      const x = parseInt(coords[0]);
+      const y = parseInt(coords[1]);
 
-        ctx.fillStyle = display[idx] === 1 ? ALIVE_COLOR : DEAD_COLOR;
-
-        ctx.fillRect(
-          col * (CELL_SIZE + 1) + 1,
-          row * (CELL_SIZE + 1) + 1,
-          CELL_SIZE,
-          CELL_SIZE
-        );
-      }
+      ctx.fillRect(
+        x * (CELL_SIZE + 1) + 1,
+        y * (CELL_SIZE + 1) + 1,
+        CELL_SIZE,
+        CELL_SIZE
+      );
     }
 
     ctx.stroke();
@@ -90,8 +86,13 @@ function onMessage(event: MessageEvent) {
 
     for (let change of changes) {
       const { x, y, isAlive } = change;
-      const idx = getIndex(x, y);
-      display[idx] ^= isAlive ? 1 : 0;
+
+      const key = `${x},${y}`;
+      if (isAlive) {
+        alivePixels[key] = 1;
+      } else {
+        delete alivePixels[key];
+      }
     }
   }
 }
