@@ -1,4 +1,4 @@
-use chipotle8::{DisplayChange, Interpreter};
+use chipotle8::{DisplayChange, Emulator};
 use futures::{FutureExt, StreamExt};
 use serde::Serialize;
 use serde_json::Result as JsonResult;
@@ -16,7 +16,6 @@ use warp::Filter;
 static INDEX_HTML_PATH: &str = "index.html";
 static WORKER_JS_PATH: &str = "dist/worker.js";
 
-
 /// Our state of currently connected users.
 ///
 /// - Key is their id
@@ -27,7 +26,7 @@ type Users = Arc<
             usize,
             (
                 Arc<Mutex<mpsc::UnboundedSender<Result<Message, warp::Error>>>>,
-                Arc<Mutex<Interpreter>>,
+                Arc<Mutex<Emulator>>,
             ),
         >,
     >,
@@ -83,44 +82,46 @@ async fn user_connected(ws: WebSocket, users: Users) {
 
     println!("new user: {}", my_id);
 
-    let (interpreter_ws_tx, mut interpreter_ws_rx) = ws.split();
+    let (emulator_ws_tx, mut emulator_ws_rx) = ws.split();
 
     // Use an unbounded channel to handle buffering and flushing of messages
     // to the websocket...
     let (tx, rx) = mpsc::unbounded_channel();
-    tokio::task::spawn(rx.forward(interpreter_ws_tx).map(|result| {
+    tokio::task::spawn(rx.forward(emulator_ws_tx).map(|result| {
         if let Err(e) = result {
             eprintln!("websocket send error: {}", e);
         }
     }));
 
     // Save the sender in our list of connected users.
-    let interpreter = Arc::new(Mutex::new(
-        Interpreter::with_game_file("data/PONG").unwrap(),
-    ));
+    let emulator = Arc::new(Mutex::new(Emulator::with_game_file("data/PONG").unwrap()));
     let shared_tx = Arc::new(Mutex::new(tx));
     users
         .lock()
         .await
-        .insert(my_id, (shared_tx.clone(), interpreter.clone()));
+        .insert(my_id, (shared_tx.clone(), emulator.clone()));
 
-    // spawn a separate thread which runs the interpreter indefinitely
+    // spawn a separate thread which runs the emulator indefinitely
     // TODO: break out of the loop and clean things up if all users
     // disconnect
     tokio::spawn(async move {
         loop {
             thread::sleep(std::time::Duration::from_millis(
-                chipotle8::TIMER_CYCLE_INTERVAL,
+                chipotle8::CYCLE_INTERVAL_MS,
             ));
 
-            let mut interpreter = interpreter.lock().await;
+            let mut emulator = emulator.lock().await;
 
             // execute the current operation and draw the display if it changed
-            if let Some(op) = interpreter.cycle() {
+            if let Some(op) = emulator.cycle() {
                 if op.is_display_op() {
-                    let changes = interpreter.flush_changes();
+                    let changes = emulator.flush_changes();
 
-                    let display_change_message = serde_json::to_string(&DisplayChangeMessage { r#type: "displaychange", changes }).unwrap();
+                    let display_change_message = serde_json::to_string(&DisplayChangeMessage {
+                        r#type: "displaychange",
+                        changes,
+                    })
+                    .unwrap();
 
                     if let Err(_disconnected) = shared_tx
                         .clone()
@@ -139,7 +140,7 @@ async fn user_connected(ws: WebSocket, users: Users) {
 
     // Every time the user sends a message, broadcast it to
     // all other users...
-    while let Some(result) = interpreter_ws_rx.next().await {
+    while let Some(result) = emulator_ws_rx.next().await {
         let msg = match result {
             Ok(msg) => msg,
             Err(e) => {
