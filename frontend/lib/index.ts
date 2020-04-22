@@ -30,19 +30,17 @@ if (ctx !== null) {
 }
 
 const renderLoop = () => {
+  ctx?.clearRect(0, 0, canvas.width, canvas.height);
   drawCells();
 
   requestAnimationFrame(renderLoop);
-};
-
-const getIndex = (x: number, y: number) => {
-  return y * width + x;
 };
 
 const drawCells = () => {
   if (ctx !== null) {
     ctx.beginPath();
 
+    console.log(Object.keys(alivePixels).length);
     for (let key of Object.keys(alivePixels)) {
       const coords = key.split(",");
       const x = parseInt(coords[0]);
@@ -91,7 +89,11 @@ function onMessage(event: MessageEvent) {
       if (isAlive) {
         alivePixels[key] = 1;
       } else {
+        console.log(alivePixels[key] === undefined);
+        console.log(key);
+        console.log(`before : ${Object.keys(alivePixels).length}`);
         delete alivePixels[key];
+        console.log(`after: ${Object.keys(alivePixels).length}`);
       }
     }
   }
