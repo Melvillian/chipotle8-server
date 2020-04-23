@@ -1,123 +1,70 @@
-import {
-  parseServerMsg,
-  MessageType,
-  DisconnectMessage,
-  DisplayChangeMessage,
-} from "./messaging";
 import MyWorker = require("worker-loader?name=[name].js!./worker");
+import { updateCanvasImageData, initializeImage } from "./image";
 
 let worker = new MyWorker();
 
-const CELL_SIZE = 10; // px
-const GRID_COLOR = "#CCCCCC";
-const DEAD_COLOR = "#FFFFFF";
-const ALIVE_COLOR = "#000000";
-const width = 64;
-const height = 32;
+window.onload = function () {
+  // Get the canvas and context
+  const canvas: HTMLCanvasElement = document.getElementById(
+    "game-of-life-canvas"
+  ) as HTMLCanvasElement;
+  const context = canvas.getContext("2d");
 
-// initialize display and fill with empty pixels
-const display = new Array(width * height);
-for (let i = 0; i < width * height; i++) {
-  display.push(0);
-}
+  const CHIP_8_WIDTH = 64;
+  const CHIP_8_HEIGHT = 32;
 
-// Give the canvas room for all of our cells and a 1px border
-// around each of them.
-const canvas: HTMLCanvasElement = document.getElementById(
-  "game-of-life-canvas"
-) as HTMLCanvasElement;
-canvas.height = (CELL_SIZE + 1) * height + 1;
-canvas.width = (CELL_SIZE + 1) * width + 1;
+  canvas.width = 640;
+  canvas.height = 320;
 
-const ctx = canvas.getContext("2d");
+  // Define the image dimensions as the closest multiple of the
+  // base CHIP-8 display width and height
+  const widthMultiplier = Math.floor(canvas.width / CHIP_8_WIDTH);
+  const heightMultiplier = Math.floor(canvas.height / CHIP_8_HEIGHT);
+  const width = CHIP_8_WIDTH * widthMultiplier;
+  const height = CHIP_8_HEIGHT * heightMultiplier;
 
-const renderLoop = () => {
-  drawGrid();
-  drawCells();
+  // Create an ImageData object
+  let imageData = context?.createImageData(width, height)!;
 
-  requestAnimationFrame(renderLoop);
-};
+  // the CHIP-8 display is a fixed width and height, but the canvas
+  // width and height can change. DISPLAY_RATIO is a multiplier
+  // representing how many canvas pixels represent a single CHIP-8
+  // pixel
 
-const drawGrid = () => {
-  if (ctx !== null) {
-    ctx.beginPath();
-    ctx.strokeStyle = GRID_COLOR;
+  console.log("height: " + height + " width: " + width);
+  console.log(
+    "canvas height: " + canvas.height + " canvas width: " + canvas.width
+  );
+  console.log("heightMultiplier: " + heightMultiplier);
+  console.log("widthMultiplier: " + widthMultiplier);
 
-    // Vertical lines.
-    for (let i = 0; i <= width; i++) {
-      ctx.moveTo(i * (CELL_SIZE + 1) + 1, 0);
-      ctx.lineTo(i * (CELL_SIZE + 1) + 1, (CELL_SIZE + 1) * height + 1);
-    }
+  let shouldPrint = true;
+  // the worker reads in pixel changes from the game server and sends those
+  // changes here, where they're used to update the canvas pixels
+  worker.onmessage = (evt: MessageEvent) => {
+    const change = evt.data;
 
-    // Horizontal lines.
-    for (let j = 0; j <= height; j++) {
-      ctx.moveTo(0, j * (CELL_SIZE + 1) + 1);
-      ctx.lineTo((CELL_SIZE + 1) * width + 1, j * (CELL_SIZE + 1) + 1);
-    }
+    updateCanvasImageData(
+      imageData,
+      change,
+      width,
+      widthMultiplier,
+      heightMultiplier
+    );
 
-    ctx.stroke();
-  } else {
-    console.error("failed to load 2d canvas context!");
+    // Draw the image data to the canvas
+    context?.putImageData(imageData, 0, 0);
+  };
+
+  // setup our black pixel canvas
+  initializeImage(imageData, width, height);
+
+  // Main loop
+  function main(tframe: number) {
+    // Request animation frames
+    window.requestAnimationFrame(main);
   }
+
+  // Call the main loop
+  main(0);
 };
-
-const getIndex = (x: number, y: number) => {
-  return y * width + x;
-};
-
-const drawCells = () => {
-  if (ctx !== null) {
-    ctx.beginPath();
-
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        const idx = getIndex(col, row);
-
-        ctx.fillStyle = display[idx] === 1 ? ALIVE_COLOR : DEAD_COLOR;
-
-        ctx.fillRect(
-          col * (CELL_SIZE + 1) + 1,
-          row * (CELL_SIZE + 1) + 1,
-          CELL_SIZE,
-          CELL_SIZE
-        );
-      }
-    }
-
-    ctx.stroke();
-  } else {
-    console.error("failed to load 2d canvas context!");
-  }
-};
-
-const socket = new WebSocket("ws://localhost:3000/echo");
-
-socket.onopen = onConnect;
-socket.onmessage = onMessage;
-
-function onConnect(event: Event) {
-  console.log("we're connected!");
-  socket.send(JSON.stringify({ type: "disconnect", userId: 4 }));
-}
-
-function onMessage(event: MessageEvent) {
-  const parsed = parseServerMsg(event.data);
-
-  if (parsed.type() === MessageType.Disconnect) {
-    console.log("received disconnect");
-    const msg = parsed as DisconnectMessage;
-  } else if (parsed.type() === MessageType.DisplayChange) {
-    console.log("received displaychange");
-    const msg = parsed as DisplayChangeMessage;
-
-    const changes = msg.changes;
-
-    for (let change of changes) {
-      const { x, y, isAlive } = change;
-      const idx = getIndex(x, y);
-      display[idx] ^= isAlive ? 1 : 0;
-    }
-  }
-}
-
-requestAnimationFrame(renderLoop);
