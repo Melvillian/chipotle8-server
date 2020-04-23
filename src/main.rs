@@ -1,7 +1,6 @@
 use chipotle8::{DisplayChange, Emulator};
 use futures::{FutureExt, StreamExt};
 use serde::Serialize;
-use serde_json::Result as JsonResult;
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -47,13 +46,13 @@ async fn main() {
 
     let users = Arc::new(Mutex::new(HashMap::new()));
     let users = warp::any().map(move || users.clone());
-
     // GET / -> index html
     let index = warp::get()
         .and(warp::path::end())
         .and(warp::fs::file(INDEX_HTML_PATH));
 
-    // expose all of the files in dist/
+    // expose all of the files in frontend/dist/
+
     let bundle = warp::path("frontend")
         .and(warp::path("dist"))
         .and(warp::fs::dir("frontend/dist"));
@@ -97,6 +96,7 @@ async fn user_connected(ws: WebSocket, users: Users) {
 
     // Save the sender in our list of connected users.
     let emulator = Arc::new(Mutex::new(Emulator::with_game_file("games/PONG").unwrap()));
+
     let shared_tx = Arc::new(Mutex::new(tx));
     users
         .lock()
@@ -108,9 +108,6 @@ async fn user_connected(ws: WebSocket, users: Users) {
     // disconnect
     tokio::spawn(async move {
         loop {
-            thread::sleep(std::time::Duration::from_millis(
-                chipotle8::CYCLE_INTERVAL_MS,
-            ));
 
             let mut emulator = emulator.lock().await;
 

@@ -1,5 +1,6 @@
 let webpack = require("webpack");
 let path = require("path");
+
 module.exports = {
   entry: "./frontend/lib/index.ts",
   output: {
