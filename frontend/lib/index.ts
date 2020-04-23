@@ -1,12 +1,4 @@
-import {
-  parseServerMsg,
-  MessageType,
-  DisconnectMessage,
-  DisplayChangeMessage,
-} from "./messaging";
 import MyWorker = require("worker-loader?name=[name].js!./worker");
-
-let worker = new MyWorker();
 
 const CELL_SIZE = 10; // px
 const GRID_COLOR = "#CCCCCC";
@@ -20,6 +12,16 @@ const display = new Array(width * height);
 for (let i = 0; i < width * height; i++) {
   display.push(0);
 }
+
+let worker = new MyWorker();
+
+worker.onmessage = (evt: MessageEvent) => {
+  const change = evt.data;
+
+  const { x, y, isAlive } = change;
+  const idx = getIndex(x, y);
+  display[idx] ^= isAlive ? 1 : 0;
+};
 
 // Give the canvas room for all of our cells and a 1px border
 // around each of them.
@@ -89,35 +91,5 @@ const drawCells = () => {
     console.error("failed to load 2d canvas context!");
   }
 };
-
-const socket = new WebSocket("ws://localhost:3000/echo");
-
-socket.onopen = onConnect;
-socket.onmessage = onMessage;
-
-function onConnect(event: Event) {
-  console.log("we're connected!");
-  socket.send(JSON.stringify({ type: "disconnect", userId: 4 }));
-}
-
-function onMessage(event: MessageEvent) {
-  const parsed = parseServerMsg(event.data);
-
-  if (parsed.type() === MessageType.Disconnect) {
-    console.log("received disconnect");
-    const msg = parsed as DisconnectMessage;
-  } else if (parsed.type() === MessageType.DisplayChange) {
-    console.log("received displaychange");
-    const msg = parsed as DisplayChangeMessage;
-
-    const changes = msg.changes;
-
-    for (let change of changes) {
-      const { x, y, isAlive } = change;
-      const idx = getIndex(x, y);
-      display[idx] ^= isAlive ? 1 : 0;
-    }
-  }
-}
 
 requestAnimationFrame(renderLoop);
