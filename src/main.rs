@@ -105,9 +105,6 @@ async fn user_connected(ws: WebSocket, users: Users) {
     // disconnect
     tokio::spawn(async move {
         loop {
-            thread::sleep(std::time::Duration::from_millis(
-                chipotle8::CYCLE_INTERVAL_MS,
-            ));
 
             let mut emulator = emulator.lock().await;
 

@@ -13,6 +13,9 @@ window.onload = function () {
   const CHIP_8_WIDTH = 64;
   const CHIP_8_HEIGHT = 32;
 
+  canvas.width = 640;
+  canvas.height = 320;
+
   // Define the image dimensions as the closest multiple of the
   // base CHIP-8 display width and height
   const widthMultiplier = Math.floor(canvas.width / CHIP_8_WIDTH);
