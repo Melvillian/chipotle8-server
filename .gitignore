@@ -1,5 +1,5 @@
 /target
 node_modules
 
-dist/app.js
-dist/worker.js
+frontend/dist/app.js
+frontend/dist/worker.js
