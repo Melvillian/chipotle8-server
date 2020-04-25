@@ -114,6 +114,8 @@ async fn user_connected(ws: WebSocket, users: Users) {
             // execute the current operation and draw the display if it changed
             if let Some(op) = emulator.cycle() {
                 if op.is_display_op() {
+                    std::thread::sleep(std::time::Duration::from_millis(3));
+
                     let changes = emulator.flush_changes();
 
                     let display_change_message = serde_json::to_string(&DisplayChangeMessage {

@@ -51,9 +51,6 @@ window.onload = function () {
       widthMultiplier,
       heightMultiplier
     );
-
-    // Draw the image data to the canvas
-    context?.putImageData(imageData, 0, 0);
   };
 
   // setup our black pixel canvas
@@ -61,6 +58,9 @@ window.onload = function () {
 
   // Main loop
   function main(tframe: number) {
+    // Draw the image data to the canvas
+    context?.putImageData(imageData, 0, 0);
+
     // Request animation frames
     window.requestAnimationFrame(main);
   }
