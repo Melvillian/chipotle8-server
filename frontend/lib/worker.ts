@@ -1,9 +1,4 @@
-import {
-  parseServerMsg,
-  MessageType,
-  DisconnectMessage,
-  DisplayChangeMessage,
-} from "./messaging";
+import { parseServerMsg } from "./messaging";
 
 console.log("starting worker");
 
@@ -17,19 +12,14 @@ function onConnect(event: Event) {
   console.log(`connected to websocket server at ${DOMAIN}`);
 }
 
-const ctx: Worker = self as any;
+const worker: Worker = self as any;
 
+worker.onmessage = (event: MessageEvent) => {
+  // TODO
+  //const msg: Message = parseClientMsg(event.data, socket);
+};
 function onMessage(event: MessageEvent) {
-  const parsed = parseServerMsg(event.data);
+  const msg = parseServerMsg(event.data, worker);
 
-  if (parsed.type() === MessageType.Disconnect) {
-    console.log("received disconnect");
-    const msg = parsed as DisconnectMessage;
-  } else if (parsed.type() === MessageType.DisplayChange) {
-    const msg = parsed as DisplayChangeMessage;
-
-    for (let change of msg.changes) {
-      ctx.postMessage(change);
-    }
-  }
+  msg.handle(worker);
 }

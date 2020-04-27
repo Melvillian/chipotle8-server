@@ -1,12 +1,8 @@
 import { Key } from "./key";
 import { DisplayChange } from "./display_change";
 
-// used to we can search for strings that match our MessageType enum's variants. Should always
-// match the strings in MessageType
-const messageTypes = ["disconnect", "displaychange", "keydown", "keyup"];
-
-// used so we can calculate its `typeof` and compare it against the type of incoming message data
-const displayChangeExample: DisplayChange[] = [{ x: 0, y: 0, isAlive: true }];
+const serverMessageTypes = ["disconnect", "displaychange"];
+const clientMessageTypes = ["keychange"];
 
 /**
  * The types of events we'll receive over the websocket from the server
@@ -19,46 +15,48 @@ export enum MessageType {
 }
 
 /**
- * A message sent or received via WebSockets
+ * A message sent by the server
  */
-interface Message {
-  type: () => MessageType;
-  toJSON: () => string;
+export interface ServerMessage {
+  handle: (workerSocket: Worker) => void;
 }
 
 /**
- * A Message for the KeyUp and KeyDown MessageTypes
+ * A message sent by the client
  */
-export class KeyMessage implements Message {
-  keyType: MessageType; // up or down
+export interface ClientMessage {
+  handle: (websocket: WebSocket) => void;
+}
+
+/**
+ * A Message sent by the client when a key is pressed up or down
+ */
+export class KeyMessage implements ClientMessage {
+  isUp: boolean; // up or down
   key: Key;
 
   /**
    * Create a KeyMessage
-   * @param isUp true if this is for a KeyUp MessageType, false if it's for a KeyDown MessageType
+   * @param isUp true if the key was released, false otherwise
    * @param key the key that was pressed or released
    */
   constructor(isUp: boolean, key: Key) {
-    this.keyType = isUp ? MessageType.KeyUp : MessageType.KeyDown;
+    this.isUp = isUp;
     this.key = key;
   }
 
-  type(): MessageType {
-    return this.keyType;
-  }
-
-  toJSON(): string {
-    return JSON.stringify({ type: this.type(), key: this.key });
+  handle(websocket: WebSocket) {
+    // TODO
   }
 }
 
 /**
- * A Message for the Disconnect MessageType
+ * A Message sent by the server when another user disconnects
  */
-export class DisconnectMessage implements Message {
+export class DisconnectMessage implements ServerMessage {
   userId: number;
 
-  constructor(data: any) {
+  constructor(data: { type: string; userId: number }) {
     if (data.type !== "disconnect" || typeof data.userId !== "number") {
       throw new Error(
         `bad data passed to DisconnectMessage constructor ${data}`
@@ -67,26 +65,19 @@ export class DisconnectMessage implements Message {
     this.userId = data.userId;
   }
 
-  type(): MessageType {
-    return MessageType.Disconnect;
-  }
-
-  toJSON(): string {
-    return JSON.stringify({ type: this.type(), userId: this.userId });
+  handle(webworker: Worker) {
+    // TODO
   }
 }
 
 /**
- * A Message for the DisplayChange MessageType
+ * A Message sent by the server when a pixel on the 64x32 CHIP-8 display changes
  */
-export class DisplayChangeMessage implements Message {
+export class DisplayChangeMessage implements ServerMessage {
   changes: DisplayChange[];
 
-  constructor(data: any) {
-    if (
-      data.type !== "displaychange" ||
-      typeof data.changes !== typeof displayChangeExample
-    ) {
+  constructor(data: { type: string; changes: DisplayChange[] }) {
+    if (data.type !== "displaychange") {
       throw new Error(
         `bad data passed to DisplayChangeMessage constructor ${data}`
       );
@@ -94,21 +85,20 @@ export class DisplayChangeMessage implements Message {
     this.changes = data.changes;
   }
 
-  type(): MessageType {
-    return MessageType.DisplayChange;
-  }
-
-  toJSON(): string {
-    return JSON.stringify({ type: this.type(), changes: this.changes });
+  handle(webworker: Worker) {
+    for (let change of this.changes) {
+      webworker.postMessage(change);
+    }
   }
 }
 
 /**
- * parsed the raw string data send from the server and returns the correct Message type for the caller
+ * parse the raw string data send from the server and returns the correct Message type for the caller
  * to handle
  * @param rawData a message sent by the server to the client
+ * @param worker a web worker we'll use to communicate with the clent's main thread rendering logic
  */
-export function parseServerMsg(rawData: string): Message {
+export function parseServerMsg(rawData: string, worker: Worker): ServerMessage {
   let data = JSON.parse(rawData);
   switch (data.type) {
     case "disconnect": {
@@ -126,21 +116,16 @@ export function parseServerMsg(rawData: string): Message {
 }
 
 /**
- * Send a keyup message to the server.
- * @param socket The websocket shared with the server
- * @param key The key which was released
+ * parse a webworker message from the client into a Message which can be handled
+ *
+ * @param rawData the JSON data from a websocket MessageEvent
+ * @param socket a socket we'll use to communicate with the server
  */
-export function sendKeyUpMsg(socket: WebSocket, key: Key) {
-  let msg = new KeyMessage(true, key);
-  socket.send(msg.toJSON());
-}
-
-/**
- * Send a keydown message to the server.
- * @param socket The websocket shared with the server
- * @param key The key which was pressed
- */
-export function sendKeyDownMsg(socket: WebSocket, key: Key) {
-  let msg = new KeyMessage(false, key);
-  socket.send(msg.toJSON());
-}
+// export function parseClientMsg(rawData: string, socket: WebSocket): ClientMessage {
+//   let data = JSON.parse(rawData);
+//   switch (data.type) {
+//     case "keychange": {
+//       return new KeyMessage(data)
+//     }
+//   }
+// }
