@@ -23,14 +23,11 @@ window.onload = function () {
   const width = CHIP_8_WIDTH * widthMultiplier;
   const height = CHIP_8_HEIGHT * heightMultiplier;
 
-  // Create an ImageData object
+  // Create an ImageData object and setup our default black pixel canvas
   let imageData = context?.createImageData(width, height)!;
+  initializeImage(imageData, width, height);
 
-  // the CHIP-8 display is a fixed width and height, but the canvas
-  // width and height can change. DISPLAY_RATIO is a multiplier
-  // representing how many canvas pixels represent a single CHIP-8
-  // pixel
-
+  // log in case we need to debug
   console.log("height: " + height + " width: " + width);
   console.log(
     "canvas height: " + canvas.height + " canvas width: " + canvas.width
@@ -38,9 +35,8 @@ window.onload = function () {
   console.log("heightMultiplier: " + heightMultiplier);
   console.log("widthMultiplier: " + widthMultiplier);
 
-  let shouldPrint = true;
-  // the worker reads in pixel changes from the game server and sends those
-  // changes here, where they're used to update the canvas pixels
+  // setup handlers for messages sent from the server and forwarded
+  // by the webworker
   worker.onmessage = (evt: MessageEvent) => {
     const change = evt.data;
 
@@ -53,8 +49,9 @@ window.onload = function () {
     );
   };
 
-  // setup our black pixel canvas
-  initializeImage(imageData, width, height);
+  // setup handlers for key down/up events, which will send to the server via the webworker
+  this.document.addEventListener("keydown", handleKeyDown);
+  this.document.addEventListener("keyup", handleKeyUp);
 
   // Main loop
   function main(tframe: number) {
@@ -67,4 +64,22 @@ window.onload = function () {
 
   // Call the main loop
   main(0);
+};
+
+/**
+ * Sends a message to the server via the websocket when the player presses a key down
+ * @param event a key pressed down
+ */
+const handleKeyDown = (event: KeyboardEvent) => {
+  console.log(`down: ${event.key}`);
+  //worker.postMessage
+};
+
+/**
+ * Same as handleKeyDown but for when the key is released
+ * @param event a key released
+ */
+const handleKeyUp = (event: KeyboardEvent) => {
+  console.log(`up: ${event.key}`);
+  //worker.postMessage
 };
