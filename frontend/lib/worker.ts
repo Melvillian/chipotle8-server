@@ -1,4 +1,4 @@
-import { parseServerMsg } from "./messaging";
+import { parseClientMsg, parseServerMsg, KeyChange } from "./messaging";
 
 console.log("starting worker");
 
@@ -6,20 +6,23 @@ const DOMAIN = "localhost:3000/";
 const socket = new WebSocket(`ws://${DOMAIN}echo`);
 
 socket.onopen = onConnect;
-socket.onmessage = onMessage;
+socket.onmessage = onServerMessage;
 
 function onConnect(event: Event) {
   console.log(`connected to websocket server at ${DOMAIN}`);
 }
 
-const worker: Worker = self as any;
-
-worker.onmessage = (event: MessageEvent) => {
-  // TODO
-  //const msg: Message = parseClientMsg(event.data, socket);
-};
-function onMessage(event: MessageEvent) {
+function onServerMessage(event: MessageEvent) {
   const msg = parseServerMsg(event.data, worker);
 
-  msg.handle(worker);
+  msg.handle();
+}
+
+const worker: Worker = self as any;
+worker.onmessage = onClientMessage;
+
+function onClientMessage(evt: MessageEvent) {
+  const msg = parseClientMsg(evt.data, socket);
+
+  msg.handle();
 }

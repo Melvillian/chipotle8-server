@@ -71,8 +71,8 @@ window.onload = function () {
  * @param event a key pressed down
  */
 const handleKeyDown = (event: KeyboardEvent) => {
-  console.log(`down: ${event.key}`);
-  //worker.postMessage
+  const keyMsg = { key: event.key, isUp: false };
+  worker.postMessage(JSON.stringify(keyMsg));
 };
 
 /**
@@ -80,6 +80,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
  * @param event a key released
  */
 const handleKeyUp = (event: KeyboardEvent) => {
-  console.log(`up: ${event.key}`);
-  //worker.postMessage
+  const keyMsg = { key: event.key, isUp: true };
+  worker.postMessage(JSON.stringify(keyMsg));
 };
