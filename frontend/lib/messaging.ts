@@ -30,8 +30,7 @@ export type KeyChange = { key: string; isUp: boolean };
  * A Message sent by the client when a key is pressed up or down
  */
 export class KeyMessage implements ClientMessage {
-  isUp: boolean; // up or down
-  key: string;
+  msg: KeyChange;
   websocket: WebSocket;
 
   /**
@@ -40,13 +39,15 @@ export class KeyMessage implements ClientMessage {
    * @param key the key that was pressed or released
    */
   constructor(data: { isUp: boolean; key: string }, websocket: WebSocket) {
-    this.isUp = data.isUp;
-    this.key = data.key;
+    this.msg = {
+      isUp: data.isUp,
+      key: data.key,
+    };
     this.websocket = websocket;
   }
 
   handle() {
-    console.log(`key: ${this.key}`);
+    this.websocket.send(JSON.stringify(this.msg));
   }
 }
 

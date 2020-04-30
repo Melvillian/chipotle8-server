@@ -1,4 +1,4 @@
-import { parseClientMsg, parseServerMsg, KeyChange } from "./messaging";
+import { parseClientMsg, parseServerMsg } from "./messaging";
 
 console.log("starting worker");
 
