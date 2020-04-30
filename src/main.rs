@@ -6,10 +6,9 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-use std::thread;
 use tokio::sync::{mpsc, Mutex};
 use warp::ws::{Message, WebSocket};
-use warp::Filter;
+use warp::{Filter, Rejection, Reply};
 
 /// the static HTML to serve
 static INDEX_HTML_PATH: &str = "frontend/index.html";
@@ -22,14 +21,21 @@ static WORKER_JS_PATH: &str = "frontend/dist/worker.js";
 type Users = Arc<
     Mutex<
         HashMap<
-            usize,
+            PlayerID,
             (
-                Arc<Mutex<mpsc::UnboundedSender<Result<Message, warp::Error>>>>,
-                Arc<Mutex<Emulator>>,
+                GameChannel,
+                Game,
             ),
         >,
     >,
 >;
+
+/// The unique ID of the player, used for messaging
+type PlayerID = usize;
+/// The Emulator's game state shared between 2 players
+type Game = Arc<Mutex<Emulator>>;
+/// A channel used to send messages between players via the server
+type GameChannel = Arc<Mutex<mpsc::UnboundedSender<Result<Message, warp::Error>>>>;
 
 #[derive(Debug, Serialize)]
 struct DisplayChangeMessage {
@@ -43,7 +49,13 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
+    let routes = setup_routes();
 
+    warp::serve(routes).run(([127, 0, 0, 1], 3000)).await;
+}
+
+/// Build the routing service for serving the html and API endpoints
+fn setup_routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let users = Arc::new(Mutex::new(HashMap::new()));
     let users = warp::any().map(move || users.clone());
     // GET / -> index html
@@ -72,14 +84,12 @@ async fn main() {
             ws.on_upgrade(move |socket| user_connected(socket, users))
         });
 
-    let routes = index.or(worker).or(chat).or(bundle);
-
-    warp::serve(routes).run(([127, 0, 0, 1], 3000)).await;
+    index.or(worker).or(chat).or(bundle)
 }
 
 async fn user_connected(ws: WebSocket, users: Users) {
     // Use a counter to assign a new unique ID for this user.
-    let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
+    let my_id: PlayerID = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
     println!("new user: {}", my_id);
 
@@ -94,10 +104,11 @@ async fn user_connected(ws: WebSocket, users: Users) {
         }
     }));
 
-    // Save the sender in our list of connected users.
-    let emulator = Arc::new(Mutex::new(Emulator::with_game_file("games/PONG").unwrap()));
+    // Save the user in our list of connected users to be shared between games
+    let emulator: Game = Arc::new(Mutex::new(Emulator::with_game_file("games/PONG").unwrap()));
 
-    let shared_tx = Arc::new(Mutex::new(tx));
+    let shared_tx: GameChannel = Arc::new(Mutex::new(tx));
+
     users
         .lock()
         .await
