@@ -1,7 +1,8 @@
 use chipotle8::{DisplayChange, Emulator};
 use futures::{FutureExt, StreamExt};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -29,19 +30,12 @@ type Users = Arc<
         >,
     >,
 >;
-
 /// The unique ID of the player, used for messaging
 type PlayerID = usize;
 /// The Emulator's game state shared between 2 players
 type Game = Arc<Mutex<Emulator>>;
 /// A channel used to send messages between players via the server
 type GameChannel = Arc<Mutex<mpsc::UnboundedSender<Result<Message, warp::Error>>>>;
-
-#[derive(Debug, Serialize)]
-struct DisplayChangeMessage {
-    changes: Vec<DisplayChange>,
-    r#type: &'static str,
-}
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
@@ -164,13 +158,34 @@ async fn setup_ws_msg_rcv(mut ws_rx: impl Stream<Item=Result<Message, warp::Erro
             }
         };
 
-        handle_ws_message(my_id, msg, &users).await;
+        handle_ws_message(&my_id, msg, &users).await
     }
 }
 
-async fn handle_ws_message(my_id: usize, msg: Message, users: &Users) {
-    // TODO: implement key event handling
-    println!("{:?}", msg.to_str());
+/// Parse a websocket message from the client which either updates the
+/// Emulator or sends a message to users in the game.
+async fn handle_ws_message(my_id: &PlayerID, msg: Message, users: &Users) {
+    if let Ok(key_msg) = msg.to_str()
+    .map_err(|_| format!("bad msg: {:?}", msg))
+    .and_then(|s| {
+        serde_json::from_str::<KeyChangeMessage>(s)
+        .map_err(|_| format!("bad JSON parsing: {:?}", msg))
+    }) {
+
+    } else {
+        eprintln!()
+    }
 }
 
-// TODO: implement game room creation and adding a user to the room
+#[derive(Debug, Serialize)]
+struct DisplayChangeMessage {
+    changes: Vec<DisplayChange>,
+    r#type: &'static str,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KeyChangeMessage {
+    is_up: bool,
+    key: String,
+}
