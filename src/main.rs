@@ -8,7 +8,7 @@ use std::sync::{
 };
 use tokio::sync::{mpsc, Mutex};
 use warp::ws::{Message, WebSocket};
-use warp::{Filter, Rejection, Reply};
+use warp::{Filter, Rejection, Reply, Stream};
 
 /// the static HTML to serve
 static INDEX_HTML_PATH: &str = "frontend/index.html";
@@ -81,24 +81,24 @@ fn setup_routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clon
         .and(users)
         .map(|ws: warp::ws::Ws, users| {
             // This will call our function if the handshake succeeds.
-            ws.on_upgrade(move |socket| user_connected(socket, users))
+            ws.on_upgrade(move |socket| setup_game(socket, users))
         });
 
     index.or(worker).or(chat).or(bundle)
 }
 
-async fn user_connected(ws: WebSocket, users: Users) {
-    // Use a counter to assign a new unique ID for this user.
+async fn setup_game(ws: WebSocket, users: Users) {
+    // assign a new unique ID for this user.
     let my_id: PlayerID = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
     println!("new user: {}", my_id);
 
-    let (emulator_ws_tx, mut emulator_ws_rx) = ws.split();
+    let (ws_tx, ws_rx) = ws.split();
 
     // Use an unbounded channel to handle buffering and flushing of messages
     // to the websocket...
-    let (tx, rx) = mpsc::unbounded_channel();
-    tokio::task::spawn(rx.forward(emulator_ws_tx).map(|result| {
+    let (server_tx, server_rx) = mpsc::unbounded_channel();
+    tokio::task::spawn(server_rx.forward(ws_tx).map(|result| {
         if let Err(e) = result {
             eprintln!("websocket send error: {}", e);
         }
@@ -107,7 +107,7 @@ async fn user_connected(ws: WebSocket, users: Users) {
     // Save the user in our list of connected users to be shared between games
     let emulator: Game = Arc::new(Mutex::new(Emulator::with_game_file("games/PONG").unwrap()));
 
-    let shared_tx: GameChannel = Arc::new(Mutex::new(tx));
+    let shared_tx: GameChannel = Arc::new(Mutex::new(server_tx));
 
     users
         .lock()
@@ -150,9 +150,12 @@ async fn user_connected(ws: WebSocket, users: Users) {
         }
     });
 
-    // Every time the user sends a message, broadcast it to
-    // all other users...
-    while let Some(result) = emulator_ws_rx.next().await {
+    setup_ws_msg_rcv(ws_rx, my_id, &users).await;
+}
+
+/// Setup the handler for messages sent by the client to the server via websocket
+async fn setup_ws_msg_rcv(mut ws_rx: impl Stream<Item=Result<Message, warp::Error>> + std::marker::Unpin, my_id: PlayerID, users: &Users) {
+    while let Some(result) = ws_rx.next().await {
         let msg = match result {
             Ok(msg) => msg,
             Err(e) => {
@@ -161,12 +164,13 @@ async fn user_connected(ws: WebSocket, users: Users) {
             }
         };
 
-        user_message(my_id, msg, &users).await;
+        handle_ws_message(my_id, msg, &users).await;
     }
 }
 
-async fn user_message(my_id: usize, msg: Message, users: &Users) {
+async fn handle_ws_message(my_id: usize, msg: Message, users: &Users) {
     // TODO: implement key event handling
+    println!("{:?}", msg.to_str());
 }
 
 // TODO: implement game room creation and adding a user to the room
