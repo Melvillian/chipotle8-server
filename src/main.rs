@@ -1,8 +1,7 @@
-use chipotle8::{DisplayChange, Emulator};
+use chipotle8::{AsKeyboard, DisplayChange, Emulator, Key};
 use futures::{FutureExt, StreamExt};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -165,15 +164,23 @@ async fn setup_ws_msg_rcv(mut ws_rx: impl Stream<Item=Result<Message, warp::Erro
 /// Parse a websocket message from the client which either updates the
 /// Emulator or sends a message to users in the game.
 async fn handle_ws_message(my_id: &PlayerID, msg: Message, users: &Users) {
-    if let Ok(key_msg) = msg.to_str()
+    match msg.to_str()
     .map_err(|_| format!("bad msg: {:?}", msg))
     .and_then(|s| {
         serde_json::from_str::<KeyChangeMessage>(s)
         .map_err(|_| format!("bad JSON parsing: {:?}", msg))
     }) {
+        Ok(key_msg) => {
+            let (_, game) = users
+            .lock()
+            .await
+            .get(my_id).unwrap();
 
-    } else {
-        eprintln!()
+            println!("{:?}", key_msg);
+            // TODO add a keyboard object for each player and store it in the
+            // users map so we can keep track of each player's keyboard state
+        },
+        Err(e) => eprintln!("{}", e),
     }
 }
 
@@ -188,4 +195,31 @@ struct DisplayChangeMessage {
 struct KeyChangeMessage {
     is_up: bool,
     key: String,
+}
+
+impl AsKeyboard for KeyChangeMessage {
+    fn keys_down(&self) -> Vec<Key> {
+        (match self.key.as_ref() {
+            "1" => Some(Key::Key1),
+            "2" => Some(Key::Key2),
+            "3" => Some(Key::Key3),
+            "4" => Some(Key::C),
+            "q" => Some(Key::Key4),
+            "w" => Some(Key::Key5),
+            "e" => Some(Key::Key6),
+            "r" => Some(Key::D),
+            "a" => Some(Key::Key7),
+            "s" => Some(Key::Key8),
+            "d" => Some(Key::Key9),
+            "f" => Some(Key::E),
+            "z" => Some(Key::A),
+            "x" => Some(Key::Key0),
+            "c" => Some(Key::B),
+            "v" => Some(Key::F),
+            _ => None,
+        }).map_or_else(
+            || vec![],
+            |key| vec![key],
+        )
+    }
 }
