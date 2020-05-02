@@ -74,18 +74,13 @@ fn setup_routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clon
         .and(users)
         .map(|ws: warp::ws::Ws, users| {
             // This will call our function if the handshake succeeds.
-            ws.on_upgrade(move |socket| setup_game(socket, users))
+            ws.on_upgrade(move |socket| create_new_game(socket, users))
         });
 
     index.or(worker).or(chat).or(bundle)
 }
 
-async fn setup_game(ws: WebSocket, users: Users) {
-    // assign a new unique ID for this user.
-    let my_id: PlayerID = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
-
-    println!("new user: {}", my_id);
-
+async fn create_new_game(ws: WebSocket, users: Users) {
     let (ws_tx, ws_rx) = ws.split();
 
     // Use an unbounded channel to handle buffering and flushing of messages
@@ -97,9 +92,9 @@ async fn setup_game(ws: WebSocket, users: Users) {
         }
     }));
 
-    // Save the user in our list of connected users to be shared between games
+    // Create a new user and all the game state for the user's new game
+    let my_id: PlayerID = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
     let emulator: Game = Arc::new(Mutex::new(Emulator::with_game_file("games/PONG").unwrap()));
-
     let shared_tx: GameChannel = Arc::new(Mutex::new(server_tx));
 
     users
@@ -107,12 +102,21 @@ async fn setup_game(ws: WebSocket, users: Users) {
         .await
         .insert(my_id, (shared_tx.clone(), emulator.clone()));
 
+    // start the game in a separate thread
+    setup_game(emulator, shared_tx).await;
+
+    // handle keyboard and other events from the players' clients
+    setup_ws_msg_rcv(ws_rx, my_id, &users).await;
+}
+
+/// Run the emulator in another thread. We'll use the GameChannel to
+/// send events to/from the emulator from/to the users
+async fn setup_game(emulator: Game, shared_tx: GameChannel) {
     // spawn a separate thread which runs the emulator indefinitely
     // TODO: break out of the loop and clean things up if all users
     // disconnect
     tokio::spawn(async move {
         loop {
-
             let mut emulator = emulator.lock().await;
 
             // execute the current operation and draw the display if it changed
@@ -142,8 +146,6 @@ async fn setup_game(ws: WebSocket, users: Users) {
             }
         }
     });
-
-    setup_ws_msg_rcv(ws_rx, my_id, &users).await;
 }
 
 /// Setup the handler for messages sent by the client to the server via websocket
@@ -171,7 +173,7 @@ async fn handle_ws_message(my_id: &PlayerID, msg: Message, users: &Users) {
         .map_err(|_| format!("bad JSON parsing: {:?}", msg))
     }) {
         Ok(key_msg) => {
-            let (_, game) = users
+            let (_, _game) = users
             .lock()
             .await
             .get(my_id).unwrap();

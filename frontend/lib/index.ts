@@ -3,6 +3,26 @@ import { updateCanvasImageData, initializeImage } from "./image";
 
 let worker = new MyWorker();
 
+// the CHIP-8 has a hexadecimal keyboard 0x0-0xF, and these are our 16 QWERTY keyboard mappings
+const hex_keys = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "q",
+  "w",
+  "e",
+  "r",
+  "a",
+  "s",
+  "d",
+  "f",
+  "z",
+  "x",
+  "c",
+  "v",
+];
+
 window.onload = function () {
   // Get the canvas and context
   const canvas: HTMLCanvasElement = document.getElementById(
@@ -71,8 +91,10 @@ window.onload = function () {
  * @param event a key pressed down
  */
 const handleKeyDown = (event: KeyboardEvent) => {
-  const keyMsg = { key: event.key, isUp: false };
-  worker.postMessage(JSON.stringify(keyMsg));
+  if (hex_keys.indexOf(event.key) > -1) {
+    const keyMsg = { key: event.key, isUp: false };
+    worker.postMessage(JSON.stringify(keyMsg));
+  }
 };
 
 /**
@@ -80,6 +102,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
  * @param event a key released
  */
 const handleKeyUp = (event: KeyboardEvent) => {
-  const keyMsg = { key: event.key, isUp: true };
-  worker.postMessage(JSON.stringify(keyMsg));
+  if (hex_keys.indexOf(event.key) > -1) {
+    const keyMsg = { key: event.key, isUp: true };
+    worker.postMessage(JSON.stringify(keyMsg));
+  }
 };
